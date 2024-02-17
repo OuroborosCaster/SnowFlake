@@ -44,7 +44,7 @@ class IdWorker:
         # 等待到下一个毫秒，这是为了防止在同一毫秒内序列号用完的情况
         timestamp = self._time_gen()
         while timestamp <= last_timestamp:
-            await asyncio.sleep(0)
+            # await asyncio.sleep(0)
             timestamp = self._time_gen()
         return timestamp
 
@@ -65,9 +65,9 @@ class IdWorker:
             else:
                 # 如果当前时间戳不等于最后一次生成ID的时间戳，那么直接生成ID
                 self.sequence = 0
-            if timestamp < self.last_timestamp:
-                # 如果当前时间戳小于最后一次生成ID的时间戳，那么表示时钟回拨，抛出异常
-                raise Exception(f"Clock moved backwards. Refusing to generate id for {self.last_timestamp - timestamp} milliseconds")
+            # if timestamp < self.last_timestamp:
+            #     # 如果当前时间戳小于最后一次生成ID的时间戳，那么表示时钟回拨，抛出异常
+            #     raise Exception(f"Clock moved backwards. Refusing to generate id for {self.last_timestamp - timestamp} milliseconds")
             self.last_timestamp = timestamp
             # 返回生成的ID，由时间戳、数据中心ID、工作节点ID和序列号组成
             return ((timestamp - self.twepoch) << self.timestamp_left_shift) | (self.datacenter_id << self.datacenter_id_shift) | (self.worker_id << self.worker_id_shift) | self.sequence
@@ -80,28 +80,3 @@ id_worker = IdWorker(worker_id=0, datacenter_id=0)
 async def get_id():
     # 处理GET请求，返回生成的ID
     return {"id": await id_worker.get_id()}
-
-
-@app.get("/backtest")
-async def backtest():
-    # 保存当前时间
-    now = time.time()
-
-    # 生成 ID
-    id1 = await id_worker.get_id()
-
-    # 将系统时间设置为之前的时间
-    time.time = lambda: now - 60
-
-    # 尝试生成 ID
-    try:
-        id2 = await id_worker.get_id()
-    except Exception as e:
-        result = f"Caught exception: {e}"
-    else:
-        result = f"Generated ID: {id2}"
-
-    # 恢复系统时间
-    time.time = lambda: now
-
-    return {"result": result}
